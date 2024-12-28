@@ -12,9 +12,9 @@ def run_command(command):
         result = subprocess.run(command, check=True, shell=True, capture_output=True, text=True)
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
-        print(f"Command '{command}' failed with exit code {e.returncode}")
-        print("Error output:")
-        print(e.stderr)
+        #print(f"Command '{command}' failed with exit code {e.returncode}")
+        #print("Error output:")
+        #print(e.stderr)
         raise
 
 def connect_to_cluster(context):
@@ -36,6 +36,48 @@ def install_helm():
         print("Helm installed successfully.")
 
 def install_keda():
+    """Install KEDA using Helm and ensure it is running."""
+    try:
+        run_command("helm repo add kedacore https://kedacore.github.io/charts")
+        run_command("helm repo update")
+
+        try:
+            run_command("helm list -n keda | grep keda")
+            print("KEDA is already installed. Current status:")
+            show_keda_status()
+        except subprocess.CalledProcessError:
+            print("Installing KEDA...")
+            run_command("helm install keda kedacore/keda --namespace keda --create-namespace")
+            print("KEDA installation initiated. Waiting for KEDA pods to be in the Running state...")
+            wait_for_keda_pods()
+
+    except Exception as e:
+        print(f"Failed to install or check KEDA: {e}")
+
+def wait_for_keda_pods():
+    """Wait for KEDA pods to be running."""
+    max_attempts = 30
+    attempt = 0
+    while attempt < max_attempts:
+        try:
+            output = run_command("kubectl get pods -n keda")
+            pods = [line.split() for line in output.split('\n')[1:] if line]
+            all_running = all(pod[2] == "Running" for pod in pods)
+            if all_running:
+                print("KEDA is successfully installed and all pods are running.")
+                print(output)
+                return
+            else:
+                print("Waiting for KEDA pods to be running...")
+                time.sleep(10)
+                attempt += 1
+        except Exception as e:
+            print(f"Error checking KEDA pods: {e}")
+            time.sleep(10)
+            attempt += 1
+
+    print("Timed out waiting for KEDA pods to be in Running state. Current status:")
+    show_keda_status()
     """Install KEDA using Helm and ensure it is running."""
     try:
         # Add the KEDA Helm repository and update
@@ -65,21 +107,6 @@ def show_keda_status():
     except Exception as e:
         print(f"Failed to get KEDA pod status: {e}")
 
-def wait_for_keda_pods():
-    """Wait for KEDA pods to be running."""
-    config.load_kube_config()
-    v1 = client.CoreV1Api()
-
-    while True:
-        pods = v1.list_namespaced_pod(namespace="keda", label_selector="app.kubernetes.io/name=keda")
-        all_running = all(pod.status.phase == "Running" for pod in pods.items)
-        if all_running:
-            print("KEDA is successfully installed and all pods are running.")
-            show_keda_status()
-            break
-        else:
-            print("Waiting for KEDA pods to be running...")
-            time.sleep(5)  # Wait before checking again
 
 def create_deployment_from_args(args):
     """Create a Kubernetes deployment with KEDA scaling from command-line arguments."""
