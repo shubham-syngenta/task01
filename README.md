@@ -99,21 +99,21 @@ python k8s_automation.py --context <kubernetes-context> --action get-status --de
 1. Connect to a cluster:
 ``` 
 python k8s_automation.py --context minikube --action connect 
-![alt text](image-2.png)
 ```
+![alt text](image-2.png)
 
 2. Install Helm:
 ```
 python k8s_automation.py --context minikube --action install-helm
-![alt text](image-1.png)
-
 ```
+![alt text](image-1.png)
 
 3. Install KEDA:
 ```
 python k8s_automation.py --context minikube --action install-keda
-![alt text](image.png)
+
 ```
+![alt text](image.png)
 
 4. Create a deployment using parameters:
 ```
